@@ -60,6 +60,8 @@ const shouldShowTopHighlight =
 	navbarTransparentMode === "full" || navbarTransparentMode === "semifull";
 
 const enableBanner = backgroundWallpaper.mode === "banner";
+const enableScrollExpand =
+	enableBanner && (backgroundWallpaper.common?.scrollExpand ?? false);
 
 let pageTitle: string;
 if (title) {
@@ -560,6 +562,7 @@ const siteLang = lang.replace("_", "-");
         "is-home": isHomePageCheck,
         "lg:is-home": isHomePageCheck,
         "enable-banner": enableBanner,
+        "wallpaper-scroll-expand": enableScrollExpand,
         "sticky-navbar": siteConfig.navbar.stickyNavbar ?? false,
         "enable-card-border": siteConfig.card?.border,
         "card-follow-theme-hue": siteConfig.card?.followTheme,
@@ -612,6 +615,49 @@ const siteLang = lang.replace("_", "-");
     .enable-banner #top-row {
       height: calc(var(--banner-height-home) - 4.5rem);
       @apply transition-all duration-300;
+    }
+
+    /* 桌面端混合壁纸：顶部保持横幅，滚动后扩展为固定全屏背景。 */
+    @media (min-width: 1024px) {
+      body.wallpaper-scroll-expand.enable-banner #wallpaper-wrapper {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0;
+        right: 0;
+        height: var(--wallpaper-scroll-height, var(--banner-height-home));
+        opacity: var(--wallpaper-scroll-opacity, 1) !important;
+        transform: none !important;
+        transition: none;
+        will-change: height, opacity;
+      }
+
+      body.wallpaper-scroll-expand.enable-banner
+        #wallpaper-wrapper
+        #banner-images-container {
+        filter: blur(var(--wallpaper-scroll-blur, 0px));
+        transform: scale(var(--wallpaper-scroll-scale, 1));
+        transform-origin: center;
+        transition: none;
+        will-change: filter, transform;
+      }
+
+      body.wallpaper-scroll-expand #banner-overlay-container,
+      body.wallpaper-scroll-expand #header-waves,
+      body.wallpaper-scroll-expand .waves,
+      body.wallpaper-scroll-expand #wallpaper-gradient {
+        opacity: var(--wallpaper-scroll-banner-opacity, 1);
+        transition: none;
+      }
+
+      body.wallpaper-scroll-expand.wallpaper-scroll-expanded
+        #banner-overlay-container,
+      body.wallpaper-scroll-expand.wallpaper-scroll-expanded #header-waves,
+      body.wallpaper-scroll-expand.wallpaper-scroll-expanded .waves,
+      body.wallpaper-scroll-expand.wallpaper-scroll-expanded
+        #wallpaper-gradient {
+        opacity: 0;
+        pointer-events: none;
+      }
     }
 
     /* 全屏壁纸模式 */
@@ -1398,6 +1444,65 @@ function disableAnimation() {
     // 使用批量DOM操作优化性能
     const operations: (() => void)[] = [];
 
+    if (document.body.classList.contains("wallpaper-scroll-expand")) {
+      operations.push(() => {
+        const isDesktop = window.innerWidth >= 1024;
+        const wallpaperWrapper = document.getElementById("wallpaper-wrapper");
+        const expandDistance = Math.max(
+          360,
+          Math.min(window.innerHeight * 0.75, 640),
+        );
+        const rawProgress = isDesktop
+          ? Math.min(1, Math.max(0, scrollTop / expandDistance))
+          : 0;
+        // smoothstep：滚动开始和结束时速度自然收敛，避免突然跳变
+        const progress = rawProgress * rawProgress * (3 - 2 * rawProgress);
+        const bannerHeight = window.innerHeight * (BANNER_HEIGHT_HOME / 100);
+        const expandedHeight =
+          bannerHeight + (window.innerHeight - bannerHeight) * progress;
+        const templateBlur = backgroundWallpaper.overlay?.blur ?? 0;
+        const templateOpacity = backgroundWallpaper.overlay?.opacity ?? 0.8;
+        const templateCardOpacity =
+          backgroundWallpaper.overlay?.cardOpacity ?? 0.6;
+
+        if (wallpaperWrapper) {
+          wallpaperWrapper.style.setProperty(
+            "--wallpaper-scroll-height",
+            `${expandedHeight}px`,
+          );
+          wallpaperWrapper.style.setProperty(
+            "--wallpaper-scroll-blur",
+            `${templateBlur * progress}px`,
+          );
+          wallpaperWrapper.style.setProperty(
+            "--wallpaper-scroll-scale",
+            String(1 + 0.05 * progress),
+          );
+          wallpaperWrapper.style.setProperty(
+            "--wallpaper-scroll-opacity",
+            String(1 - (1 - templateOpacity) * progress),
+          );
+          wallpaperWrapper.style.setProperty(
+            "--wallpaper-scroll-banner-opacity",
+            String(1 - progress),
+          );
+        }
+
+        document.documentElement.style.setProperty(
+          "--card-transparent-opacity",
+          String(1 - (1 - templateCardOpacity) * progress),
+        );
+        document.body.classList.toggle(
+          "wallpaper-transparent",
+          isDesktop && rawProgress > 0,
+        );
+        document.body.classList.toggle(
+          "wallpaper-scroll-expanded",
+          isDesktop && rawProgress >= 1,
+        );
+      });
+    }
+
     if (backToTopBtn) {
       operations.push(() => {
         if (scrollTop > bannerHeight) {
@@ -1476,6 +1581,7 @@ function disableAnimation() {
       "--banner-height-extend",
       `${offset}px`
     );
+    scrollFunction();
   };
 
   // 页面加载完成后初始化banner和内容溢出容器
