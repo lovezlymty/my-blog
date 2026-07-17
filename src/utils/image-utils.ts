@@ -2,7 +2,7 @@ import { coverImageConfig } from "../config/coverImageConfig";
 import { siteConfig } from "../config/siteConfig";
 import type { ImageFormat } from "../types/config";
 
-const { randomCoverImage } = coverImageConfig;
+const { defaultCoverImage, randomCoverImage } = coverImageConfig;
 
 /**
  * 根据seed生成确定性hash值
@@ -37,7 +37,7 @@ export function processCoverImageSync(
 	seed?: string,
 ): string {
 	if (!image || image === "") {
-		return "";
+		return defaultCoverImage;
 	}
 
 	if (image !== "api") {

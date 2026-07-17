@@ -1,5 +1,6 @@
 export type CoverImageConfig = {
 	enableInPost: boolean; // 是否在文章详情页显示封面图
+	defaultCoverImage: string; // 文章未指定 image 时使用的公共默认封面
 	randomCoverImage: {
 		enable: boolean; // 是否启用随机图功能
 		apis: string[]; // 随机图API列表

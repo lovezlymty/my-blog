@@ -19,6 +19,9 @@ export const coverImageConfig: CoverImageConfig = {
 	// 是否在文章详情页显示封面图
 	enableInPost: true,
 
+	// 文章没有填写 image 时使用的公共默认封面（public 目录路径）
+	defaultCoverImage: "/assets/images/post-default-cover.jpg",
+
 	randomCoverImage: {
 		// 随机封面图功能开关
 		enable: false,
